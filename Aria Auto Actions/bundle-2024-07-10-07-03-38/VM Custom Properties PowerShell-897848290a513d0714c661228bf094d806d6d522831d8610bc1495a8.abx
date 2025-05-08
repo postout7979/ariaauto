@@ -1,0 +1,17 @@
+---
+exportVersion: "1"
+exportId: "8a7480a376d3a3e10176fd49958a009d"
+name: "VM Custom Properties PowerShell"
+runtime: "powershell"
+entrypoint: "handler"
+inputs:
+  secret:8a7480a376d3a3e10176fc8ce947006f: ""
+  secret:8a7480a376d3a3e10176fcbde0ec0087: ""
+  secret:8a7480a376d3a3e10176fcc7755a0088: ""
+timeoutSeconds: 600
+deploymentTimeoutSeconds: 900
+actionType: "SCRIPT"
+provider: "on-prem"
+configuration:
+  const_azure-system_managed_identity: false
+memoryInMB: 512

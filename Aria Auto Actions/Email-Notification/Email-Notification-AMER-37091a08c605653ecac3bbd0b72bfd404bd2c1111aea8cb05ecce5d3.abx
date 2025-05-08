@@ -1,0 +1,24 @@
+---
+exportVersion: "1"
+exportId: "8a74801f727329570172b98bfd6704f8"
+name: "Email-Notification-AMER"
+runtime: "python"
+entrypoint: "handler"
+inputs:
+  status: "FINISHED"
+  eventType: "CREATE_DEPLOYMENT"
+  __metadata:
+    orgId: "85ed3aa6-6398-485f-a8b5-35e74d0be25c"
+    userName: "tony@coke.sqa-horizon.local"
+    eventTopicId: "example-value-2"
+  projectName: "My-Project"
+  requestType: "BLUEPRINT"
+  deploymentId: "6b3a942c-ee64-47b1-b95f-31e6a1105cac"
+timeoutSeconds: 180
+deploymentTimeoutSeconds: 600
+dependencies: "requests\njson2html"
+actionType: "SCRIPT"
+provider: "on-prem"
+configuration:
+  const_azure-system_managed_identity: false
+memoryInMB: 300

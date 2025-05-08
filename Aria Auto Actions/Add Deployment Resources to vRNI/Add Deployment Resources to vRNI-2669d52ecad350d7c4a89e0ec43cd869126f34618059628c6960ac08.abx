@@ -1,0 +1,17 @@
+---
+exportVersion: "1"
+exportId: "8a74809e72854af60172996437fc002d"
+name: "Add Deployment Resources to vRNI"
+runtime: "python"
+entrypoint: "handler"
+description: "Adds the virtual machines from a deployment to a vRNI application"
+inputs:
+  vrni_fqdn: "10.176.144.43"
+timeoutSeconds: 180
+deploymentTimeoutSeconds: 600
+dependencies: "requests"
+actionType: "SCRIPT"
+provider: "on-prem"
+configuration:
+  const_azure-system_managed_identity: false
+memoryInMB: 300

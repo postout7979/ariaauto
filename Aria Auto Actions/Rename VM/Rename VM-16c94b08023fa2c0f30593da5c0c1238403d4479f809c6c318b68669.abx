@@ -1,0 +1,15 @@
+---
+exportVersion: "1"
+exportId: "8a76a3bc6abd6cbd016b1ead8dd443d9"
+name: "Rename VM"
+runtime: "python"
+entrypoint: "handler"
+timeoutSeconds: 180
+deploymentTimeoutSeconds: 600
+actionType: "SCRIPT"
+provider: "on-prem"
+configuration:
+  const-providers:
+  - "on-prem"
+  const_azure-system_managed_identity: false
+memoryInMB: 150
