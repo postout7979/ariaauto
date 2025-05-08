@@ -1,0 +1,14 @@
+---
+exportVersion: "1"
+exportId: "8a5ee93388ec3fd2018979ca8fea2b1c"
+name: "NotifySlack"
+runtime: "python"
+entrypoint: "handler"
+description: "Notify Slack when a provisioning is completed"
+inputs:
+  psecret:caa37d14-fb7c-4d3c-b6ce-205d6d3f6e5d: ""
+timeoutSeconds: 600
+deploymentTimeoutSeconds: 900
+dependencies: "requests"
+actionType: "SCRIPT"
+memoryInMB: 300
