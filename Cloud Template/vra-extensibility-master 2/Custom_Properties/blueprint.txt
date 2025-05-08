@@ -1,6 +1,0 @@
-#---Custom VM Properties---
-projectname: '${env.projectName}'
-deploymentname: '${env.deploymentName}'
-blueprintname: '${env.blueprintName}'
-blueprintversion: '${env.blueprintVersion}'
-#---Custom VM Properties---
