@@ -1,0 +1,21 @@
+inputs:
+  wp-size:
+    type: string
+    enum:
+      - small
+      - medium
+    description: Size of Nodes
+    title: Node Size
+  wp-image:
+    type: string
+    enum:
+      - coreos
+      - ubuntu
+    title: Select Image/OS
+  wp-count:
+    type: integer
+    default: 2
+    maximum: 5
+    minimum: 2
+    title: Wordpress Cluster Size
+    description: Wordpress Cluster Size (Number of nodes)
