@@ -1,0 +1,173 @@
+formatVersion: 2
+outputs:
+  __deploymentOverview:
+    value: '## Add Text Here'
+inputs:
+  tkg_Name:
+    type: string
+    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+    maxLength: 63
+    minLength: 1
+    title: TKG Cluster Name
+    description: May contain lowercase alphanumeric characters and "-" only.
+  controlPlaneCount:
+    type: integer
+    title: Control plane node count
+    description: Control plane node count
+    default: 1
+    enum:
+      - 1
+      - 3
+  controlPlaneVmClassName:
+    type: string
+    title: Control-Plane VM Class (Size)
+    description: Control-Plan Virtual Machine Class Name
+    oneOf:
+      - title: best-effort-large - 4 CPUs and 16 GB memory
+        const: best-effort-large
+      - title: best-effort-medium - 2 CPUs and 8 GB memory
+        const: best-effort-medium
+      - title: best-effort-small - 2 CPUs and 4 GB memory
+        const: best-effort-small
+    default: best-effort-small
+  workerCount:
+    type: integer
+    title: Worker node count
+    description: Worker node count
+    default: 1
+    enum:
+      - 1
+      - 2
+      - 3
+      - 4
+  workerVmClassName:
+    type: string
+    title: Worker VM Class (Size)
+    description: Worker Virtual Machine Class Name
+    oneOf:
+      - title: best-effort-large - 4 CPUs and 16 GB memory
+        const: best-effort-large
+      - title: best-effort-medium - 2 CPUs and 8 GB memory
+        const: best-effort-medium
+      - title: best-effort-small - 2 CPUs and 4 GB memory
+        const: best-effort-small
+    default: best-effort-small
+  namespace_Name:
+    type: string
+    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+    maxLength: 63
+    minLength: 1
+    title: Supervisor Namespace Name
+    description: May contain lowercase alphanumeric characters and "-" only.
+  region_Name:
+    type: string
+    title: Region
+    description: Select a Region.
+    enum:
+      - tmm-us-west
+  class_Name:
+    type: string
+    title: Supervisor Namespace Class
+    description: Select a Supervisor Namespace Class.
+    enum:
+      - moad-default
+  Egress:
+    type: boolean
+    title: Enable Antrea Egress
+    description: Enable Antrea Egress
+    default: true
+resources:
+  Namespace:
+    type: CCI.Supervisor.Namespace
+    properties:
+      name: ${input.namespace_Name}
+      className: ${input.class_Name}
+      regionName: ${input.region_Name}
+  TKG:
+    type: CCI.Supervisor.Resource
+    properties:
+      context: ${resource.Namespace.id}
+      manifest:
+        apiVersion: cluster.x-k8s.io/v1beta1
+        kind: Cluster
+        metadata:
+          name: ${input.tkg_Name}
+          labels:
+            tkg-cluster-selector: ${input.tkg_Name}
+        spec:
+          clusterNetwork:
+            cni:
+              name: antrea
+            pods:
+              cidrBlocks:
+                - 192.168.156.0/20
+            services:
+              cidrBlocks:
+                - 10.96.0.0/12
+            serviceDomain: cluster.local
+          topology:
+            class: tanzukubernetescluster
+            version: v1.24.9---vmware.1-tkg.4
+            variables:
+              - name: storageClasses
+                value:
+                  - tmm-kubernetes-storage-policy
+              - name: defaultStorageClass
+                value: tmm-kubernetes-storage-policy
+              - name: vmClass
+                value: ${input.controlPlaneVmClassName}
+              - name: storageClass
+                value: tmm-kubernetes-storage-policy
+            controlPlane:
+              replicas: ${input.controlPlaneCount}
+              metadata:
+                annotations:
+                  run.tanzu.vmware.com/resolve-os-image: os-name=photon
+            workers:
+              machineDeployments:
+                - class: node-pool
+                  name: ${input.tkg_Name}-nodepool
+                  replicas: ${input.workerCount}
+                  metadata:
+                    annotations:
+                      run.tanzu.vmware.com/resolve-os-image: os-name=photon
+                  variables:
+                    overrides:
+                      - name: vmClass
+                        value: ${input.workerVmClassName}
+  Antrea_Config:
+    type: CCI.Supervisor.Resource
+    properties:
+      context: ${resource.Namespace.id}
+      manifest:
+        apiVersion: cni.tanzu.vmware.com/v1alpha1
+        kind: AntreaConfig
+        metadata:
+          name: ${input.tkg_Name}-antrea-package
+        spec:
+          antrea:
+            config:
+              featureGates:
+                AntreaProxy: true
+                EndpointSlice: false
+                AntreaPolicy: true
+                Egress: ${input.Egress}
+                AntreaTraceflow: true
+                NetworkPolicyStats: true
+  Allow_Pods:
+    type: CCI.TKG.Resource
+    properties:
+      context: ${resource.TKG.id}
+      manifest:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: default-tkg-admin-privileged-binding
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: psp:vmware-system-privileged
+        subjects:
+          - apiGroup: rbac.authorization.k8s.io
+            kind: Group
+            name: system:authenticated
