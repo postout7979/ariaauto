@@ -1,0 +1,246 @@
+formatVersion: 1
+name: Avi - LBaaS Demo - Profiles
+version: 1
+inputs:
+  environment:
+    type: string
+    description: Target Environment
+    title: Target Environment
+    oneOf:
+      - title: VCF (VMware Cloud Foundation)
+        const: env:vcf
+  servers:
+    type: array
+    title: Servers
+    description: Input the server ip's to add to the pool. Leaving 0.0.0.0 will result in an empty pool being created.
+    items:
+      type: string
+    minItems: 0
+    default:
+      - 0.0.0.0
+  port:
+    type: integer
+    title: Port
+    description: Traffic sent to servers will use this destination server port unless overridden by the server's specific port attribute.
+    default: 80
+  health_monitor:
+    type: array
+    items:
+      type: string
+    title: Health Monitors
+    default:
+      - System-HTTP
+    minItems: 1
+    maxItems: 10
+  lb_algorithm:
+    type: string
+    title: Load Balancer Algorithm
+    description: The load balancing algorithm will pick a server within the pool's list of available servers.
+    readOnly: false
+    default: LB_ALGORITHM_LEAST_CONNECTIONS
+    oneOf:
+      - title: Least Connections
+        const: LB_ALGORITHM_LEAST_CONNECTIONS
+      - title: Round Robin
+        const: LB_ALGORITHM_ROUND_ROBIN
+      - title: Fastest Response
+        const: LB_ALGORITHM_FASTEST_RESPONSE
+      - title: Consistent Hash
+        const: LB_ALGORITHM_CONSISTENT_HASH
+      - title: Least Load
+        const: LB_ALGORITHM_LEAST_LOAD
+      - title: Fewest Servers
+        const: LB_ALGORITHM_FEWEST_SERVERS
+      - title: Random
+        const: LB_ALGORITHM_RANDOM
+      - title: Fewest Tasks
+        const: LB_ALGORITHM_FEWEST_TASKS
+      - title: Core Affinity
+        const: LB_ALGORITHM_CORE_AFFINITY
+  server_hm_down_recovery:
+    type: string
+    title: Select New Server When Persistent Server Is Down ?
+    description: Specifies behavior when a persistent server has been marked down by a health monitor. Enum options - HM_DOWN_PICK_NEW_SERVER, HM_DOWN_ABORT_CONNECTION, HM_DOWN_CONTINUE_PERSISTENT_SERVER
+    default: HM_DOWN_PICK_NEW_SERVER
+    oneOf:
+      - title: Immediate
+        const: HM_DOWN_PICK_NEW_SERVER
+      - title: Never
+        const: HM_DOWN_CONTINUE_PERSISTENT_SERVER
+  timeout:
+    type: integer
+    title: Persistence Timeout
+    description: The length of time after a client's connections have closed before expiring the client's persistence to a server. Allowed values are 1-720. Unit is Min.
+    minimum: 1
+    maximum: 720
+    default: 20
+  ip_mask:
+    type: integer
+    title: IP Mask
+    description: Mask to be applied on client IP. This may be used to persist clients from a subnet to the same server. When set to 0, all requests are sent to the same server. Allowed values are 0-128.
+    minimum: 0
+    maximum: 128
+    default: 0
+  prst_hdr_name:
+    type: string
+    title: Custom Header / App Cookie Name
+    description: Header or App Cookie name for application cookie persistence or custom http header.
+    default: Set Header Name
+  always_send_cookie:
+    type: boolean
+    title: Always Send Cookie ?
+    description: If no persistence cookie was received from the client, always send it.
+  cookie_name:
+    type: string
+    title: Cookie Name
+    description: HTTP cookie name for cookie persistence.
+    default: Set HTTP Cookie Name
+  http_only:
+    type: boolean
+    title: HTTP Only
+    description: Sets the HttpOnly attribute in the cookie. Setting this helps to prevent the client side scripts from accessing this cookie, if supported by browser.
+  is_persistent_cookie:
+    type: boolean
+    title: Is Persistent Cookie
+    description: When True, the cookie used is a persistent cookie, i.e. the cookie shouldn't be used at the end of the timeout. By default, it is set to false, making the cookie a session cookie, which allows clients to use it even after the timeout, if the session is still open.
+  persistenceProfileName:
+    type: string
+    title: New Persistence Profile Name
+    description: A user-friendly name for the persistence profile
+  persistenceProfile:
+    type: string
+    title: Persistence Profile
+    description: Select a System persistence profile or create a new one
+    oneOf:
+      - title: Client IP Address
+        const: System-Persistence-Client-IP
+      - title: HTTP Cookie
+        const: System-Persistence-Http-Cookie
+      - title: Custom HTTP Header
+        const: System-Persistence-Custom-Http-Header
+      - title: App Cookie
+        const: System-Persistence-App-Cookie
+      - title: TLS
+        const: System-Persistence-TLS
+      - title: New Custom Profile
+        const: CUSTOM
+  persistenceType:
+    type: string
+    title: Persistence Type
+    description: Select a method used to persist clients to the same server for a duration of time or a session.
+    oneOf:
+      - title: App Cookie
+        const: PERSISTENCE_TYPE_APP_COOKIE
+      - title: Client IP Address
+        const: PERSISTENCE_TYPE_CLIENT_IP_ADDRESS
+      - title: Custom HTTP Header
+        const: PERSISTENCE_TYPE_CUSTOM_HTTP_HEADER
+      - title: HTTP Cookie
+        const: PERSISTENCE_TYPE_HTTP_COOKIE
+      - title: TLS
+        const: PERSISTENCE_TYPE_TLS
+      - title: Existing System Profile
+        const: SYSTEM
+resources:
+  ip_persistence_profile:
+    type: Idem.AVILB.PROFILES.APPLICATION_PERSISTENCE_PROFILE
+    properties:
+      name: ${input.persistenceProfileName}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      count: ${input.persistenceType == "PERSISTENCE_TYPE_CLIENT_IP_ADDRESS" ? 1 :0}
+      persistence_type: ${input.persistenceType}
+      server_hm_down_recovery: ${input.server_hm_down_recovery}
+      ip_persistence_profile:
+        ip_mask: ${input.ip_mask}
+        ip_persistent_timeout: ${input.timeout}
+  tls_persistence_profile:
+    type: Idem.AVILB.PROFILES.APPLICATION_PERSISTENCE_PROFILE
+    properties:
+      name: ${input.persistenceProfileName}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      count: ${input.persistenceType == "PERSISTENCE_TYPE_TLS" ? 1 :0}
+      persistence_type: ${input.persistenceType}
+  app_cookie_persistence_profile:
+    type: Idem.AVILB.PROFILES.APPLICATION_PERSISTENCE_PROFILE
+    properties:
+      name: ${input.persistenceProfileName}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      count: ${input.persistenceType == "PERSISTENCE_TYPE_APP_COOKIE" ? 1 :0}
+      persistence_type: ${input.persistenceType}
+      server_hm_down_recovery: ${input.server_hm_down_recovery}
+      app_cookie_persistence_profile:
+        prst_hdr_name: ${input.prst_hdr_name}
+        timeout: ${input.timeout}
+  hdr_persistence_profile:
+    type: Idem.AVILB.PROFILES.APPLICATION_PERSISTENCE_PROFILE
+    properties:
+      name: ${input.persistenceProfileName}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      count: ${input.persistenceType == "PERSISTENCE_TYPE_CUSTOM_HTTP_HEADER" ? 1 :0}
+      persistence_type: ${input.persistenceType}
+      server_hm_down_recovery: ${input.server_hm_down_recovery}
+      hdr_persistence_profile:
+        prst_hdr_name: ${input.prst_hdr_name}
+  http_cookie_persistence_profile:
+    type: Idem.AVILB.PROFILES.APPLICATION_PERSISTENCE_PROFILE
+    properties:
+      name: ${input.persistenceProfileName}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      count: ${input.persistenceType == "PERSISTENCE_TYPE_HTTP_COOKIE" ? 1 :0}
+      persistence_type: ${input.persistenceType}
+      server_hm_down_recovery: ${input.server_hm_down_recovery}
+      http_cookie_persistence_profile:
+        always_send_cookie: ${input.always_send_cookie}
+        cookie_name: ${input.cookie_name}
+        http_only: ${input.http_only}
+        is_persistent_cookie: ${input.is_persistent_cookie}
+        timeout: ${input.timeout}
+  VIP:
+    type: Idem.AVILB.APPLICATIONS.VS_VIP
+    dependsOn:
+      - Data-Cloud-Seg
+    properties:
+      dependsOn:
+        - Data-Cloud-Seg
+      name: vip-${uuid()}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      tier1_lr: Avi-Cloud-GW
+      vip:
+        - vip_id: 0
+          auto_allocate_ip: true
+          ipam_network_subnet:
+            network_ref: ${resource.Data-Cloud-Seg.resourceName}
+  VirtualService:
+    type: Idem.AVILB.APPLICATIONS.VIRTUAL_SERVICE
+    properties:
+      name: vs-${uuid()}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      services:
+        - port: ${input.port}
+      pool_ref: ${resource.Pool.name}
+      vsvip_ref: ${resource.VIP.name}
+  Pool:
+    type: Idem.AVILB.APPLICATIONS.POOL
+    properties:
+      name: pool-${uuid()}
+      account: wkld-domain-avi
+      description: Managed by Aria Automation
+      tier1_lr: Avi-Cloud-GW
+      default_server_port: ${input.port}
+      health_monitor_refs: ${input.health_monitor}
+      lb_algorithm: ${input.lb_algorithm}
+      application_persistence_profile_ref: ${input.persistenceProfile == "CUSTOM" ? input.persistenceProfileName :input.persistenceProfile}
+      servers: '${input.servers[0] == "0.0.0.0" ? null :map_by(input.servers, address => {"ip": {"addr": address, "type" : "V4"}})}'
+  Data-Cloud-Seg:
+    type: Cloud.NSX.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: net:avi-data
