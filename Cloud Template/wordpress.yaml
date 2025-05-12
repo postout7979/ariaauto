@@ -1,0 +1,142 @@
+inputs:
+  env:
+    type: string
+    enum:
+      - 'env:vmksddc'
+    default: 'env:vmksddc'
+    title: Environment
+    description: Target Environment
+  size:
+    type: string
+    enum:
+      - small
+      - medium
+    default: small
+    description: Size of Nodes
+    title: Database Tier Size
+  username:
+    type: string
+    minLength: 4
+    maxLength: 20
+    pattern: '[a-z]+'
+    title: Database Username
+    description: Database Username
+    default: vmware
+  userpassword:
+    type: string
+    pattern: '[a-z0-9A-Z@#$]+'
+    encrypted: true
+    title: Database Password
+    default: VMware1!
+    description: Database Password
+  databaseDiskSize:
+    type: number
+    default: 4
+    maximum: 10
+    title: MySQL Data Disk Size
+    description: Size of database disk
+  count:
+    type: integer
+    default: 2
+    maximum: 5
+    minimum: 2
+    title: Wordpress Cluster Size
+    description: Wordpress Cluster Size (Number of nodes)
+  archiveDiskSize:
+    type: number
+    default: 4
+    maximum: 10
+    title: Wordpress Archive Disk Size
+    description: Size of Wordpress archive disk
+resources:
+  DBTier:
+    type: Cloud.vSphere.Machine
+    properties:
+      name: mysql
+      image: ubuntu_1604
+      flavor: '${input.size}'
+      constraints:
+        - tag: '${input.env}'
+      remoteAccess:
+        authentication: usernamePassword
+        username: '${input.username}'
+        password: '${input.userpassword}'
+      cloudConfig: |
+        #cloud-config
+        hostname: wordpress-db
+        users:
+          - name: ubuntu
+            passwd: "$1$Lg35t2vk$MIw6mB5VSuZsztttRGlJe0"
+            lock-passwd: False
+            groups: sudo
+            shell: /bin/bash
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        chpasswd:
+          list: |
+            ubuntu:VMware1!
+          expire: False
+        repo_update: true
+        repo_upgrade: all
+
+        packages:
+         - mysql-server
+
+        runcmd:
+         - sed -e '/bind-address/ s/^#*/#/' -i /etc/mysql/mysql.conf.d/mysqld.cnf
+         - service mysql restart
+         - mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'mysqlpassword';"
+         - mysql -e "FLUSH PRIVILEGES;"
+      attachedDisks: []
+      #customizationSpec: custom-linux
+      networks:
+        - network: '${resource["demo-web"].id}'
+  WebTier:
+    type: Cloud.vSphere.Machine
+    properties:
+      name: wordpress
+      image: ubuntu_1604
+      count: 1
+      constraints:
+        - tag: '${input.env}'
+      flavor: small
+      cloudConfig: |
+        #cloud-config
+        hostname: wordpress-web
+        users:
+          - name: ubuntu
+            passwd: "$1$Lg35t2vk$MIw6mB5VSuZsztttRGlJe0"
+            lock-passwd: False
+            groups: sudo
+            shell: /bin/bash
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        chpasswd:
+          list: |
+            ubuntu:VMware1!
+          expire: False
+        repo_update: true
+        repo_upgrade: all
+
+        packages:
+         - apache2
+         - php
+         - php-mysql
+         - libapache2-mod-php
+         - php-mcrypt
+         - mysql-client
+
+        runcmd:
+         - mkdir -p /var/www/html/mywordpresssite && cd /var/www/html && wget https://wordpress.org/latest.tar.gz && tar -xzf /var/www/html/latest.tar.gz -C /var/www/html/mywordpresssite --strip-components 1
+         - i=0; while [ $i -le 5 ]; do mysql --connect-timeout=3 -h ${DBTier.networks[0].address} -u root -pmysqlpassword -e "SHOW STATUS;" && break || sleep 15; i=$((i+1)); done
+         - mysql -u root -pmysqlpassword -h ${DBTier.networks[0].address} -e "create database wordpress_blog;"
+         - mv /var/www/html/mywordpresssite/wp-config-sample.php /var/www/html/mywordpresssite/wp-config.php
+         - sed -i -e s/"define( 'DB_NAME', 'database_name_here' );"/"define( 'DB_NAME', 'wordpress_blog' );"/g /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define( 'DB_USER', 'username_here' );"/"define( 'DB_USER', 'root' );"/g /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define( 'DB_PASSWORD', 'password_here' );"/"define( 'DB_PASSWORD', 'mysqlpassword' );"/g /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define( 'DB_HOST', 'localhost' );"/"define( 'DB_HOST', '${DBTier.networks[0].address}' );"/g /var/www/html/mywordpresssite/wp-config.php
+         - service apache2 reload
+      networks:
+        - network: '${resource["demo-web"].id}'
+  #customizationSpec: custom-linux
+  demo-web:
+    type: Cloud.NSX.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: 'env:vmksddc/demo-web'
