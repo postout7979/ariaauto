@@ -1,0 +1,59 @@
+```bash
+formatVersion: 1
+name: Avi - LBaaS
+version: 1
+description: Deploy a Avi Load Balancer to a NSX Segment
+inputs:
+  port:
+    type: integer
+    title: Port
+    description: Traffic sent to servers will use this destination server port unless overridden by the server's specific port attribute.
+    default: 80
+  servers:
+    type: array
+    title: Servers
+    description: Input the server ip's to add to the pool. Leaving 0.0.0.0 will create an empty pool.
+    items:
+      type: string
+    minItems: 0
+    default:
+      - 0.0.0.0
+resources:
+  Avi-VIP:
+    type: Idem.AVILB.APPLICATIONS.VS_VIP
+    dependsOn:
+      - Data-Cloud-Seg
+    properties:
+      name: vip-${uuid()}
+      account: wkld-domain-avi
+      tier1_lr: Avi-Cloud-GW
+      vip:
+        - vip_id: 0
+          auto_allocate_ip: true
+          ipam_network_subnet:
+            network_ref: ${resource.Data-Cloud-Seg.resourceName}
+  Avi-VirtualService:
+    type: Idem.AVILB.APPLICATIONS.VIRTUAL_SERVICE
+    properties:
+      name: vs-${uuid()}
+      account: wkld-domain-avi
+      services:
+        - port: ${input.port}
+      pool_ref: ${resource["Avi-POOL"].name}
+      vsvip_ref: ${resource["Avi-VIP"].name}
+  Avi-POOL:
+    type: Idem.AVILB.APPLICATIONS.POOL
+    properties:
+      name: pool-${uuid()}
+      account: wkld-domain-avi
+      default_server_port: ${input.port}
+      tier1_lr: Avi-Cloud-GW
+      servers: '${input.servers[0] == "0.0.0.0" ? null :map_by(input.servers, address => {"ip": {"addr": address, "type" : "V4"}})}'
+  Data-Cloud-Seg:
+    type: Cloud.NSX.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: net:avi-data
+
+```
