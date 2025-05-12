@@ -1,0 +1,31 @@
+formatVersion: 1
+inputs: {}
+resources:
+  WinSrv:
+    type: Cloud.vSphere.Machine
+    properties:
+      customizationSpec: aria-config-windows
+      name: winsrv
+      flavor: small
+      image: moad-win2k19
+      remoteAccess:
+        authentication: usernamePassword
+        username: administrator
+        password: vRealiz3!
+      tags:
+        - key: project
+          value: ${env.projectName}
+        - key: cost_center
+          value: engineering
+        - key: application
+          value: iis
+      networks:
+        - network: ${resource.Cloud_Network_1.id}
+      constraints:
+        - tag: env:vcf
+  Cloud_Network_1:
+    type: Cloud.Network
+    properties:
+      networkType: existing
+      constraints:
+        - tag: env:vcf
