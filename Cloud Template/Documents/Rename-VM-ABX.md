@@ -33,7 +33,8 @@ def handler(context, inputs):
 
 ```
 
-![Untitled](https://prod-files-secure.s3.us-west-2.amazonaws.com/cc60dda1-95a9-4322-bb8c-248e45010633/e6842d77-52b3-48d2-a60e-318d10cf93bc/Untitled.png)
+<img width="1734" alt="image" src="https://github.com/user-attachments/assets/b1cd28a8-f52a-4613-ad7f-c2d6e1d70722" />
+
 
 \
 
