@@ -19,3 +19,11 @@ inputs:
     minimum: 2
     title: Wordpress Cluster Size
     description: Wordpress Cluster Size (Number of nodes)
+resources:
+  WebTier:
+    type: Cloud.Machine
+    properties:
+      name: wordpress
+      flavor: '${input.wp-size}'
+      image: '${input.wp-image}'
+      count: '${input.wp-count}'
