@@ -1,0 +1,35 @@
+formatVersion: 1
+inputs:
+  scName:
+    type: string
+    title: Supervisor Namespace
+    description: |
+      <b> Enter the Supervisor Namespace you want to create </b> <br>
+      Name must be DNS compliant: <br>
+          Alphanumeric (a-z and 0-9) string with maximum length of 63 characters
+          '-' character allowed anywhere except the first or last character
+          Must be unique across all Supervisors within a vCenter Server
+  podCount:
+    type: integer
+    title: Pods Resource Limit
+    description: null
+    minimum: 10
+    maximum: 50
+    default: 10
+resources:
+  Cloud_SV_Namespace_1:
+    type: Cloud.SV.Namespace
+    properties:
+      content_libraries:
+        - name: tanzu-kubernetes-vm-service
+      name: ${to_lower(input.scName)}
+      constraints:
+        - tag: cloud.zone.k8s:vcf-wcp
+      storage:
+        - profile:
+            constraints:
+              - tag: cloud.zone.k8s:vcf-wcp
+      vm_classes:
+        - name: '*'
+      limits:
+        pod_count: ${input.podCount}
