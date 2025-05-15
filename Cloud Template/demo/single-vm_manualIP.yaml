@@ -1,0 +1,145 @@
+formatVersion: 1
+inputs:
+  hostname:
+    type: string
+  cloud:
+    type: string
+    oneOf:
+      - title: vmw
+        const: account:vmw
+    default: account:vmw
+    title: Cloud
+  cluster:
+    type: string
+    oneOf:
+      - title: vmw
+        const: account:vmw.zone
+    default: account:vmw.zone
+    title: Cluster
+  flavor:
+    type: string
+    oneOf:
+      - title: small(2Core 4GRam)
+        const: small
+      - title: medium(4Core 8GRam)
+        const: medium
+      - title: large(4Core 16GRam)
+        const: large
+      - title: xlarge(8Core 32GRam)
+        const: xlarge
+    default: medium
+    title: Flavor
+  image:
+    type: string
+    oneOf:
+      - title: Ubuntu 22
+        const: ubuntu22
+      - title: Ubuntu 24
+        const: ubuntu24
+    default: ubuntu24
+    title: Image
+  add_disk:
+    type: integer
+    title: additional disk size(GB)
+    default: 30
+  network:
+    type: string
+    oneOf:
+      - title: 10.200.51.0
+        const: net:51.0
+      - title: 10.200.50.0
+        const: net:50.0
+    default: net:51.0
+  ipaddress:
+    type: string
+    title: static ip address
+    pattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+  username:
+    type: string
+    minLength: 4
+    maxLength: 20
+    pattern: '[a-z]+'
+    title: Username
+    description: Username
+    default: admin
+  userpassword:
+    type: string
+    pattern: '[a-z0-9A-Z@#$]+'
+    encrypted: false
+    title: Password
+    description: Password
+    default: VMware1!
+resources:
+  net:
+    type: Cloud.Network
+    properties:
+      name: ${input.hostname}-net
+      networkType: existing
+      constraints:
+        - tag: ${input.network}
+  Cloud_vSphere_Disk_1:
+    type: Cloud.vSphere.Disk
+    properties:
+      name: DISK_001
+      type: HDD
+      capacityGb: ${input.add_disk}
+      dataStore: vsanDatastore
+      provisioningType: thin
+      constraints:
+        - tag: account:vmw.vsan
+  vm:
+    type: Cloud.vSphere.Machine
+    properties:
+      name: ${input.hostname}
+      image: ${input.image}
+      customizeGuestOs: false
+      flavor: ${input.flavor}
+      networks:
+        - network: ${resource.net.id}
+          assignment: static
+      constraints:
+        - tag: ${input.cluster}
+        - tag: ${input.cloud}
+      attachedDisks:
+        - source: ${resource.Cloud_vSphere_Disk_1.id}
+      cloudConfig: |
+        #cloud-config
+        write_files:
+          - path: /etc/netplan/99-installer-config.yaml
+            content: |
+              network:
+                version: 2
+                renderer: networkd
+                ethernets:
+                  ens33:
+                    addresses:
+                      - ${input.ipaddress}/${resource.net.prefixLength}
+                    routes:
+                      - to: default
+                        via: ${resource.net.gateway}
+                    nameservers:
+                      search: ${resource.net.dnsSearchDomains}
+                      addresses: ${resource.net.dns}
+        users:
+          - name: ${input.username}
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            shell: /bin/bash
+            groups: adm, sudo, wheel, users
+            lock_passwd: false
+        chpasswd:
+          list: |
+            ${input.username}:${input.userpassword}
+          expire: false
+        hostname: '${input.hostname}'
+        ssh_pwauth: true
+        repo_update: true
+        repo_upgrade: all
+        runcmd:
+          - USER=${input.username}
+          - PASS=${input.userpassword}
+          - netplan apply
+          - hostnamectl set-hostname --pretty ${self.resourceName}
+          - echo $USER:$PASS | /usr/sbin/chpasswd
+          - sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+          - service ssh reload
+          - touch /etc/cloud/cloud-init.disabled
