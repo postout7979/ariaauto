@@ -1,0 +1,46 @@
+formatVersion: 1
+inputs:
+  workers:
+    type: integer
+    title: Worker Node Count
+    default: 3
+    minimum: 3
+    maximum: 6
+  tkcname:
+    type: string
+    title: TKC name
+    default: vks-tkc
+  clusterplan:
+    type: string
+    title: Cluster Plan
+    description: <b>Development Cluster Plan </b> will add the TKG Cluster to <b>dev</b> TMC Cluster group. <br><br> <b>Production Cluster Plan </b> will add the TKG Cluster to <b>prod</b> TMC Cluster group.<br>
+    oneOf:
+      - title: Development
+        const: dev-medium-cp
+      - title: Production
+        const: prod-medium-cp
+    default: prod-medium-cp
+resources:
+  Cloud_Tanzu_Cluster_1:
+    type: Cloud.Tanzu.Cluster
+    properties:
+      name: ${to_lower(input.tkcname)}
+      plan: ${input.clusterplan}
+      workers: ${input.workers}
+      description: TKGs Cluster
+      constraints:
+        - tag: cloud.zone.k8s:vks
+      content: |
+        ---
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: default-tkg-admin-privileged-binding
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: psp:vmware-system-privileged
+        subjects:
+        - apiGroup: rbac.authorization.k8s.io
+          kind: Group
+          name: system:authenticated
