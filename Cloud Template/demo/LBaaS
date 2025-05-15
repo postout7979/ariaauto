@@ -1,0 +1,148 @@
+formatVersion: 1
+name: ALB - Web Servers
+version: 1
+inputs:
+  vs_name:
+    type: string
+    title: virtual service name
+    default: ''
+    description: input your virtual service name
+  vip_address:
+    type: string
+    title: virtual service IP
+    default: ''
+    description: input your virtual ip for avi VS
+  vip_port:
+    type: integer
+    title: vip port
+    enum:
+      - 80
+      - 443
+    default: '80'
+  servers:
+    type: array
+    title: Servers
+    description: The pool directs load balanced traffic to this list of destination servers. The servers must be configured by IP address. Leaving 0.0.0.0 will result in an empty pool being created.
+    items:
+      type: string
+    minItems: 0
+    default:
+      - 0.0.0.0
+  servers_net:
+    type: string
+    title: pool member's port group name
+    enum:
+      - vDS_CIS_FU-10.200.50
+    default: vDS_CIS_FU-10.200.50
+  server_port:
+    type: integer
+    title: server port
+    default: 80
+  health_monitor:
+    type: array
+    items:
+      type: string
+    title: Health Monitors
+    default:
+      - System-HTTP
+    minItems: 1
+    maxItems: 10
+  persistent_profile:
+    type: string
+    title: Load Balancer Persistent
+    default: System-Persistence-Client-IP
+    oneOf:
+      - title: Client
+        const: System-Persistence-Client-IP
+      - title: HTTp Cookie
+        const: System-Persistence-Http-Cookie
+      - title: custom http header
+        const: System-Persistence-Custom-Http-Header
+      - title: App cookie
+        const: System-Persistence-App-Cookie
+      - title: TLS
+        const: System-Persistence-TLS
+  lb_algorithm:
+    type: string
+    title: Load Balancer Algorithm
+    description: The load balancing algorithm will pick a server within the pool's list of available servers.
+    readOnly: false
+    default: LB_ALGORITHM_LEAST_CONNECTIONS
+    oneOf:
+      - title: Least Connections
+        const: LB_ALGORITHM_LEAST_CONNECTIONS
+      - title: Round Robin
+        const: LB_ALGORITHM_ROUND_ROBIN
+      - title: Fastest Response
+        const: LB_ALGORITHM_FASTEST_RESPONSE
+      - title: Consistent Hash
+        const: LB_ALGORITHM_CONSISTENT_HASH
+      - title: Least Load
+        const: LB_ALGORITHM_LEAST_LOAD
+      - title: Fewest Servers
+        const: LB_ALGORITHM_FEWEST_SERVERS
+      - title: Random
+        const: LB_ALGORITHM_RANDOM
+      - title: Fewest Tasks
+        const: LB_ALGORITHM_FEWEST_TASKS
+      - title: Core Affinity
+        const: LB_ALGORITHM_CORE_AFFINITY
+resources:
+  Persistence_Profile:
+    type: Idem.AVILB.PROFILES.APPLICATION_PERSISTENCE_PROFILE
+    properties:
+      name: ${input.vs_name}-profile-${uuid()}
+      description: Managed by Aria Automation
+      account: ${resource.Allocations_CloudZone.selectedCloudAccount.name}
+      persistence_type: PERSISTENCE_TYPE_CLIENT_IP_ADDRESS
+  Allocations_CloudZone:
+    type: Allocations.CloudZone
+    properties:
+      accountType: avilb
+      constraints:
+        - tag: account:vmw
+  Health_Monitor:
+    type: Idem.AVILB.PROFILES.HEALTH_MONITOR
+    properties:
+      name: ${input.vs_name}-monitor-${uuid()}
+      description: Managed by Aria Automation
+      type: HEALTH_MONITOR_HTTP
+      account: ${resource.Allocations_CloudZone.selectedCloudAccount.name}
+      monitor_port: 80
+  VIP:
+    type: Idem.AVILB.APPLICATIONS.VS_VIP
+    properties:
+      name: ${input.vs_name}-vip-${uuid()}
+      description: Managed by Aria Automation
+      account: ${resource.Allocations_CloudZone.selectedCloudAccount.name}
+      vip:
+        - enabled: true
+          ip_address:
+            addr: ${input.vip_address}
+            type: V4
+          ipam_network_subnet:
+            network_ref: vDS_CIS_FU-10.200.53
+  VirtualService:
+    type: Idem.AVILB.APPLICATIONS.VIRTUAL_SERVICE
+    properties:
+      name: ${input.vs_name}-vs-${uuid()}
+      description: Managed by Aria Automation
+      account: ${resource.Allocations_CloudZone.selectedCloudAccount.name}
+      cloud_type: CLOUD_VCENTER
+      services:
+        - port: '80'
+      pool_ref: ${resource.Pool.name}
+      vsvip_ref: ${resource.VIP.name}
+  Pool:
+    type: Idem.AVILB.APPLICATIONS.POOL
+    properties:
+      name: ${input.vs_name}-pool-${uuid()}
+      networks:
+        - network_ref: ${input.servers_net}
+      description: Managed by Aria Automation
+      account: ${resource.Allocations_CloudZone.selectedCloudAccount.name}
+      default_server_port: ${input.server_port}
+      application_persistence_profile_ref: /api/applicationpersistenceprofile/${resource.Persistence_Profile.resource_id}
+      health_monitor_refs: /api/healthmonitor/${resource.Health_Monitor.resource_id}
+      lb_algorithm: LB_ALGORITHM_LEAST_CONNECTIONS
+      servers: '${input.servers[0] == "0.0.0.0" ? null :map_by(input.servers, address => {"ip": {"addr": address, "type" : "V4"}})}'
